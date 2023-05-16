@@ -7,7 +7,6 @@ package kontext
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,9 +20,9 @@ func TestExpand(t *testing.T) {
 
 	// "expand" testdata into a new temporary directory.
 	src := filepath.Join(wd, "testdata")
-	dest, err := ioutil.TempDir("", "")
+	dest, err := os.MkdirTemp("", "")
 	if err != nil {
-		t.Fatal("ioutil.TempDir() =", err)
+		t.Fatal("os.MkdirTemp() =", err)
 	}
 	defer os.RemoveAll(dest)
 	if err := os.Chdir(dest); err != nil {

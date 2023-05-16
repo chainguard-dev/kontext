@@ -20,7 +20,7 @@ const (
 	StoragePath = "/var/run/kontext"
 )
 
-func copy(src, dest string) error {
+func copyFile(src, dest string) error {
 	from, err := os.Open(src)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func expand(ctx context.Context, base string) error {
 			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
 				return err
 			}
-			return copy(path, target)
+			return copyFile(path, target)
 		})
 
 		return nil

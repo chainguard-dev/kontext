@@ -92,7 +92,9 @@ func bundle(directory string) (v1.Layer, error) {
 		return nil, err
 	}
 
-	return tarball.LayerFromReader(bytes.NewBuffer(buf.Bytes()))
+	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
+	})
 }
 
 // Bundle packages up the given directory as a self-extracting container image based
