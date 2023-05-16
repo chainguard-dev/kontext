@@ -46,4 +46,4 @@ jobs:
       - if: github.event_name != 'pull_request'
         run: |
           # shellcheck disable=SC2046
-          cosign sign $(cat ko.images)
+          cosign sign --yes $(cat ko.images)
