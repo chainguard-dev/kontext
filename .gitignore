@@ -19,3 +19,6 @@
 
 # Go workspace file
 go.work
+
+# Where we write our the image references
+ko.images
