@@ -50,18 +50,19 @@ jobs:
                   - name: bundle
                     mountPath: /workspace
 
+                # Add a container for each test we want to run against the bundle.
                 containers:
-                - name: test
-                  image: cgr.dev/chainguard/busybox:latest-glibc
+                - name: test-git-log
+                  image: cgr.dev/chainguard/git:latest-glibc-dev
                   workingDir: /workspace
                   volumeMounts:
                   - name: bundle
                     mountPath: /workspace
                   command: ["/bin/sh", "-c"]
-
                   args:
                   - |
-                    cat go.mod
+                    git config --global --add safe.directory /workspace
+                    git log -1 --pretty=%ct --follow go.mod
 
                 volumes:
                   - name: bundle
