@@ -6,8 +6,6 @@ name: Publish
 on:
   push:
     branches: ['main']
-  pull_request:
-    branches: ['main']
 
 jobs:
   publish:
@@ -26,24 +24,11 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ko-build/setup-ko@v0.6
 
-      # Test building on pull requests.
-      - if: github.event_name == 'pull_request'
-        uses: chainguard-dev/actions/setup-registry@main
-        with:
-          port: 5000
-      - if: github.event_name == 'pull_request'
-        run: |
-          echo KO_DOCKER_REPO=localhost:5000/kontext >> "$GITHUB_ENV"
+      - run: ko build --image-refs=ko.images --bare --platform=all ./cmd/expander
 
-      - run: |
-          ko build --image-refs=ko.images --bare --platform=all ./cmd/expander
-
-      # Sign the image when not a pull request.
-      - if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@9e9de2292db7abb3f51b7f4808d98f0d347a8919
+      - uses: sigstore/cosign-installer@9e9de2292db7abb3f51b7f4808d98f0d347a8919
         with:
           cosign-release: 'v2.0.2'
-      - if: github.event_name != 'pull_request'
-        run: |
+      - run: |
           # shellcheck disable=SC2046
           cosign sign --yes $(cat ko.images)

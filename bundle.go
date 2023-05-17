@@ -29,7 +29,6 @@ var (
 func bundle(directory string) (v1.Layer, error) {
 	buf := bytes.NewBuffer(nil)
 	tw := tar.NewWriter(buf)
-	defer tw.Close()
 
 	err := filepath.Walk(directory,
 		func(path string, fi os.FileInfo, err error) error {
@@ -88,9 +87,11 @@ func bundle(directory string) (v1.Layer, error) {
 			return err
 		})
 	if err != nil {
+		tw.Close()
 		return nil, err
 	}
 
+	tw.Close()
 	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
 	})
