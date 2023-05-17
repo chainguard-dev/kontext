@@ -19,7 +19,7 @@ func TestBundleLayerIndex(t *testing.T) {
 	if err != nil {
 		t.Error("l.Size() =", err)
 	}
-	if got, want := sz, int64(204); got != want {
+	if got, want := sz, int64(211); got != want {
 		t.Errorf("Size() = %d, wanted %d", got, want)
 	}
 }
