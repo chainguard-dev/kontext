@@ -17,13 +17,28 @@ func TestExpand(t *testing.T) {
 	if err != nil {
 		t.Fatal("os.Getwd() =", err)
 	}
+	defer os.Chdir(wd)
+
+	// compute the source's bundle hash
+	src := filepath.Join(wd, "testdata")
+	if err := os.Chdir(src); err != nil {
+		t.Fatal("os.Chdir() =", err)
+	}
+	lSrc, err := bundle(".")
+	if err != nil {
+		t.Error("bundle() =", err)
+	}
+	hSrc, err := lSrc.Digest()
+	if err != nil {
+		t.Error("lSrc.Digest() =", err)
+	}
 
 	// "expand" testdata into a new temporary directory.
-	src := filepath.Join(wd, "testdata")
 	dest, err := os.MkdirTemp("", "")
 	if err != nil {
-		t.Fatal("os.MkdirTemp() =", err)
+		t.Fatal("ioutil.TempDir() =", err)
 	}
+	// t.Logf("tmp: %s", dest)
 	defer os.RemoveAll(dest)
 	if err := os.Chdir(dest); err != nil {
 		t.Fatal("os.Chdir() =", err)
@@ -32,25 +47,23 @@ func TestExpand(t *testing.T) {
 		t.Error("expand() =", err)
 	}
 
-	// bundle up both directories.
-	lSrc, err := bundle(src)
+	// Now compute the destination's bundle hash
+	lDest, err := bundle(".")
 	if err != nil {
 		t.Error("bundle() =", err)
-	}
-	lDest, err := bundle(dest)
-	if err != nil {
-		t.Error("bundle() =", err)
-	}
-
-	// Compute the bundle hashes
-	hSrc, err := lSrc.Digest()
-	if err != nil {
-		t.Error("lSrc.Digest() =", err)
 	}
 	hDest, err := lDest.Digest()
 	if err != nil {
 		t.Error("lDest.Digest() =", err)
 	}
+
+	// This was useful for debugging digest mismatches (with defer commented out!)
+	// uc, _ := lDest.Uncompressed()
+	// content, _ := io.ReadAll(uc)
+	// os.WriteFile(filepath.Join(dest, "dest.tar"), content, os.ModePerm)
+	// uc, _ = lSrc.Uncompressed()
+	// content, _ = io.ReadAll(uc)
+	// os.WriteFile(filepath.Join(dest, "src.tar"), content, os.ModePerm)
 
 	// Make sure they match.
 	if hSrc != hDest {

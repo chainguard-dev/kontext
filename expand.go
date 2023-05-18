@@ -8,7 +8,7 @@ package kontext
 import (
 	"context"
 	"io"
-	"log"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -43,50 +43,111 @@ func expand(ctx context.Context, base string) error {
 		return err
 	}
 
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.SetLimit(100)
+	// In the first pass, expand all of the files as quickly as possible,
+	// granting broad file permissions.
+	{
+		eg, ctx := errgroup.WithContext(ctx)
+		eg.SetLimit(100)
+		if err := filepath.WalkDir(base, func(path string, info fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
 
-	if err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+			if path == base {
+				return nil
+			}
+
+			// Add each file to the backlog.
+			eg.Go(func() (err error) {
+				// If the context is canceled, then bail out early.
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+
+				relativePath := path[len(base)+1:]
+				target := filepath.Join(targetPath, relativePath)
+
+				if err := os.MkdirAll(filepath.Dir(target), 0777); err != nil {
+					return err
+				}
+				fi, err := info.Info()
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return os.MkdirAll(target, fi.Mode())
+				} else if info.Type()&fs.ModeSymlink != 0 {
+					// It is not practical to test this path because there is not
+					// a portable way to change the mtime of the symlink
+					// https://github.com/golang/go/issues/3951
+					link, err := os.Readlink(path)
+					if err != nil {
+						return err
+					}
+					return os.Symlink(link, target)
+				}
+				return copyFile(path, target)
+			})
+
+			return nil
+		}); err != nil {
+			return err
+		}
+		if err := eg.Wait(); err != nil {
+			return err
+		}
+	}
+
+	// In the final pass, fixup permissions and mtimes
+	{
+		eg, ctx := errgroup.WithContext(ctx)
+		eg.SetLimit(100)
+		if err := filepath.WalkDir(base, func(path string, info fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Add each file to the backlog.
+			eg.Go(func() (err error) {
+				// If the context is canceled, then bail out early.
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+
+				target := targetPath
+				if path != base {
+					relativePath := path[len(base)+1:]
+					target = filepath.Join(targetPath, relativePath)
+				}
+
+				fi, err := info.Info()
+				if err != nil {
+					return err
+				}
+				// Set the permissions and mtime
+				if err := os.Chmod(target, fi.Mode()); err != nil {
+					return err
+				}
+				// Skip symlinks due to:
+				// https://github.com/golang/go/issues/3951
+				if info.Type()&fs.ModeSymlink != 0 {
+					return nil
+				}
+				return os.Chtimes(target, fi.ModTime(), fi.ModTime())
+			})
+
+			return nil
+		}); err != nil {
 			return err
 		}
 
-		if path == base {
-			return nil
-		}
-
-		// Add each file to the backlog.
-		eg.Go(func() error {
-			// If the context is canceled, then bail out early.
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-
-			relativePath := path[len(base)+1:]
-			target := filepath.Join(targetPath, relativePath)
-
-			if info.IsDir() {
-				return os.MkdirAll(target, os.ModePerm)
-			}
-			if !info.Mode().IsRegular() {
-				log.Printf("Skipping irregular file: %q", relativePath)
-				return nil
-			}
-			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
-				return err
-			}
-			return copyFile(path, target)
-		})
-
-		return nil
-	}); err != nil {
-		return err
+		// Wait for the work to be done.
+		return eg.Wait()
 	}
-
-	// Wait for the work to be done.
-	return eg.Wait()
 }
 
 // Expand recursively copies the current working directory into StoragePath.
