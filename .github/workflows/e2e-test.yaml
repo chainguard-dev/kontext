@@ -64,6 +64,26 @@ jobs:
                     git config --global --add safe.directory /workspace
                     git log -1 --pretty=%ct --follow go.mod
 
+                - name: test-symlinks
+                  image: cgr.dev/chainguard/busybox:latest-glibc
+                  workingDir: /workspace
+                  volumeMounts:
+                  - name: bundle
+                    mountPath: /workspace
+                  command: ["/bin/sh", "-c"]
+                  args:
+                  - |
+                    # Check that it has the right data...
+                    if [ "hello" != "$(cat e2e-testdata/blah)" ] ; then
+                      echo Incorrect content
+                      exit 1
+                    fi
+                    # Check that is is a symlink
+                    if [[ ! -L e2e-testdata/blah ]]; then
+                      echo Not a symlink
+                      exit 1
+                    fi
+
                 volumes:
                   - name: bundle
                     emptyDir: {}

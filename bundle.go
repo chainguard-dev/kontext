@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -36,27 +37,30 @@ func bundle(directory string) (v1.Layer, error) {
 				return err
 			}
 
-			// Chase symlinks.
-			info, err := os.Stat(path)
+			// If it's a symlink, then determine where it points.
+			var link string
+			if fi.Mode()&fs.ModeSymlink != 0 {
+				link, err = os.Readlink(path)
+				if err != nil {
+					return err
+				}
+			}
+
+			hdr, err := tar.FileInfoHeader(fi, link)
 			if err != nil {
 				return err
 			}
-
-			// Compute the path relative to the base path
-			relativePath, err := filepath.Rel(directory, path)
-			if err != nil {
+			// Give it the proper path.
+			hdr.Name = filepath.Join(StoragePath, path)
+			if err := tw.WriteHeader(hdr); err != nil {
 				return err
 			}
 
-			newPath := filepath.Join(StoragePath, relativePath)
-
-			if info.Mode().IsDir() {
-				return tw.WriteHeader(&tar.Header{
-					Name:     newPath,
-					Typeflag: tar.TypeDir,
-					Mode:     0555,
-				})
+			// If it's not a regular file, then return.
+			if !fi.Mode().IsRegular() {
+				return nil
 			}
+			// For regular files, copy the contexts to the tar writer.
 
 			// Open the file to copy it into the tarball.
 			file, err := os.Open(path)
@@ -64,19 +68,6 @@ func bundle(directory string) (v1.Layer, error) {
 				return err
 			}
 			defer file.Close()
-
-			// Copy the file into the image tarball.
-			if err := tw.WriteHeader(&tar.Header{
-				Name:     newPath,
-				Size:     info.Size(),
-				Typeflag: tar.TypeReg,
-				// Use a fixed Mode, so that this isn't sensitive to the directory and umask
-				// under which it was created. Additionally, windows can only set 0222,
-				// 0444, or 0666, none of which are executable.
-				Mode: 0555,
-			}); err != nil {
-				return err
-			}
 			_, err = io.Copy(tw, file)
 			return err
 		})
@@ -100,6 +91,17 @@ func Bundle(ctx context.Context, directory string, tag name.Tag) (name.Digest, e
 	}
 
 	return Map(ctx, BaseImage, tag, func(ctx context.Context, img v1.Image) (v1.Image, error) {
+		// We run the container as root, to ensure it has permissions to chmod
+		// the directory we are run in.
+		cf, err := img.ConfigFile()
+		if err != nil {
+			return nil, err
+		}
+		cf.Config.User = "0"
+		img, err = mutate.ConfigFile(img, cf)
+		if err != nil {
+			return nil, err
+		}
 		return mutate.AppendLayers(img, layer)
 	})
 }
