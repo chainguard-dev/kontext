@@ -7,6 +7,7 @@ package kontext
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,17 +22,16 @@ func TestExpand(t *testing.T) {
 
 	// compute the source's bundle hash
 	src := filepath.Join(wd, "testdata")
-	if err := os.Chdir(src); err != nil {
-		t.Fatal("os.Chdir() =", err)
-	}
-	lSrc, err := bundle(".")
+	lSrc, err := bundle(src)
 	if err != nil {
-		t.Error("bundle() =", err)
+		t.Fatal("bundle() =", err)
 	}
 	hSrc, err := lSrc.Digest()
 	if err != nil {
-		t.Error("lSrc.Digest() =", err)
+		t.Fatal("lSrc.Digest() =", err)
 	}
+
+	fmt.Println("src:", hSrc.String())
 
 	// "expand" testdata into a new temporary directory.
 	dest, err := os.MkdirTemp("", "")
@@ -43,19 +43,25 @@ func TestExpand(t *testing.T) {
 	if err := os.Chdir(dest); err != nil {
 		t.Fatal("os.Chdir() =", err)
 	}
+
 	if err := expand(context.Background(), src); err != nil {
-		t.Error("expand() =", err)
+		t.Fatal("expand() =", err)
+	}
+
+	if err := os.Chdir(wd); err != nil {
+		t.Fatal(err)
 	}
 
 	// Now compute the destination's bundle hash
-	lDest, err := bundle(".")
+	lDest, err := bundle(dest)
 	if err != nil {
-		t.Error("bundle() =", err)
+		t.Fatal("bundle() =", err)
 	}
 	hDest, err := lDest.Digest()
 	if err != nil {
-		t.Error("lDest.Digest() =", err)
+		t.Fatal("lDest.Digest() =", err)
 	}
+	t.Logf("dest digest: %s", hDest.String())
 
 	// This was useful for debugging digest mismatches (with defer commented out!)
 	// uc, _ := lDest.Uncompressed()

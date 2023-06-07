@@ -6,14 +6,12 @@ SPDX-License-Identifier: Apache-2.0
 package kontext
 
 import (
-	"archive/tar"
 	"bytes"
 	"context"
 	"io"
-	"io/fs"
-	"os"
-	"path/filepath"
 
+	apkfs "github.com/chainguard-dev/go-apk/pkg/fs"
+	apktar "github.com/chainguard-dev/go-apk/pkg/tarball"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -29,54 +27,17 @@ var (
 
 func bundle(directory string) (v1.Layer, error) {
 	buf := bytes.NewBuffer(nil)
-	tw := tar.NewWriter(buf)
+	fsys := apkfs.DirFS(directory)
 
-	err := filepath.Walk(directory,
-		func(path string, fi os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			// If it's a symlink, then determine where it points.
-			var link string
-			if fi.Mode()&fs.ModeSymlink != 0 {
-				link, err = os.Readlink(path)
-				if err != nil {
-					return err
-				}
-			}
-
-			hdr, err := tar.FileInfoHeader(fi, link)
-			if err != nil {
-				return err
-			}
-			// Give it the proper path.
-			hdr.Name = filepath.Join(StoragePath, path)
-			if err := tw.WriteHeader(hdr); err != nil {
-				return err
-			}
-
-			// If it's not a regular file, then return.
-			if !fi.Mode().IsRegular() {
-				return nil
-			}
-			// For regular files, copy the contexts to the tar writer.
-
-			// Open the file to copy it into the tarball.
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-			_, err = io.Copy(tw, file)
-			return err
-		})
+	tctx, err := apktar.NewContext(apktar.WithBaseDir(StoragePath))
 	if err != nil {
-		tw.Close()
 		return nil, err
 	}
 
-	tw.Close()
+	if err := tctx.WriteTar(context.Background(), buf, fsys); err != nil {
+		return nil, err
+	}
+
 	return tarball.LayerFromOpener(func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
 	})
