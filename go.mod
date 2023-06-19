@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/google/go-containerregistry v0.15.2
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	knative.dev/pkg v0.0.0-20230502134655-db8a35330281
 )
 
