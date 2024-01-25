@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
-      - uses: chainguard-dev/actions/digesta-bot@main
+      - uses: chainguard-dev/digestabot@4298e530896fb4164f9c89030c561b75b9321149 # v1.0.2
         id: digest-bot
         with:
           token: ${{ secrets.PULL_REQUEST_AND_CHART_REPO_PAT }}
