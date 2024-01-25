@@ -3,13 +3,15 @@
 
 spec:
   authorities:
-  - keyless:
-      url: https://fulcio.sigstore.dev
-      identities:
-      - subjectRegExp: .+@chainguard.dev$
-        issuer: https://accounts.google.com
-    ctlog:
-      url: https://rekor.sigstore.dev
-  - key:
-      # Allow commits signed by Github (merge commits)
-      kms: https://github.com/web-flow.gpg
+    - keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+          - subjectRegExp: .+@chainguard.dev$
+            issuer: https://accounts.google.com
+          - issuer: https://token.actions.githubusercontent.com
+            subject: https://github.com/chainguard-dev/kontext/.github/workflows/digest-bot.yaml@refs/heads/main
+      ctlog:
+        url: https://rekor.sigstore.dev
+    - key:
+        # Allow commits signed by Github (merge commits)
+        kms: https://github.com/web-flow.gpg
