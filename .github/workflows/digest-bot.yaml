@@ -16,16 +16,22 @@ jobs:
     if: ${{ github.repository_owner }} == 'chainguard-dev'
 
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
       id-token: write
 
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      - uses: chainguard-dev/actions/octo-sts@main
+        id: octo-sts
+        with:
+          scope: ${{ github.repository }}
+          identity: digestabot
+
       - uses: chainguard-dev/digestabot@4298e530896fb4164f9c89030c561b75b9321149 # v1.0.2
         id: digest-bot
         with:
-          token: ${{ secrets.PULL_REQUEST_AND_CHART_REPO_PAT }}
+          token: ${{ steps.octo-sts.outputs.token }}
 
       - run: echo "PR number ${{ steps.digest-bot.outputs.pull_request_number }}"
 
@@ -33,4 +39,4 @@ jobs:
         if: ${{ steps.digest-bot.outputs.pull_request_number != '' }}
         run: gh pr merge --auto --squash "https://github.com/chainguard-dev/mono/pull/${{ steps.digest-bot.outputs.pull_request_number }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.octo-sts.outputs.token }}
