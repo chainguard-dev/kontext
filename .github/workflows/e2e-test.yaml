@@ -22,7 +22,7 @@ jobs:
       # Test building on pull requests.
       - uses: chainguard-dev/actions/setup-kind@main
         with:
-          k8s-version: v1.24.x
+          k8s-version: v1.26.x
           registry-authority: registry.local:5000
       - run: |
           echo KO_DOCKER_REPO=registry.local:5000/kontext >> "$GITHUB_ENV"
