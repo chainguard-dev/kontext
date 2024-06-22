@@ -1,4 +1,4 @@
 # Copyright 2023 Chainguard, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-defaultBaseImage: cgr.dev/chainguard/static:latest-glibc@sha256:29d2ee7f2a9febbebe6c92116873533c305e081461d56f1c8ccd65f582ca12f4
+defaultBaseImage: cgr.dev/chainguard/static:latest-glibc@sha256:53422c140d6af450c798e568df5d3077fee70b1ee501de2ce9708f9d91434a15
