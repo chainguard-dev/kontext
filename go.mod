@@ -3,7 +3,7 @@ module github.com/chainguard-dev/kontext
 go 1.20
 
 require (
-	github.com/google/go-containerregistry v0.20.0
+	github.com/google/go-containerregistry v0.20.1
 	golang.org/x/sync v0.7.0
 	knative.dev/pkg v0.0.0-20230502134655-db8a35330281
 )
